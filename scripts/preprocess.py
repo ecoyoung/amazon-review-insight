@@ -28,7 +28,7 @@ TRIVIAL_PATTERNS = [
 ]
 TRIVIAL_RE = [re.compile(pattern, re.IGNORECASE) for pattern in TRIVIAL_PATTERNS]
 MIN_CONTENT_LEN = 8
-REPORT_TITLE = "Consumer Voice Intelligence Report"
+REPORT_TITLE = "Amazon Review Insight Report"
 DEFAULT_CHUNK_SIZE = 150
 
 

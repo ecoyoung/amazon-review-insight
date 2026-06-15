@@ -28,9 +28,9 @@ The report must be:
 
 - English only
 - business presentation oriented
-- agency branded with the `Oceanwing` logo
+- branded with the Amazon Review Insight logo
 - understandable to broad stakeholders
-- titled `Consumer Voice Intelligence Report`
+- titled `Amazon Review Insight Report`
 - subtitled with the input filename without the file extension
 
 Suggested report sections:
@@ -52,7 +52,7 @@ The footer should show the agency name and a neutral methodology note rather tha
 
 Recommended style:
 
-- `Prepared by Oceanwing`
+- `Prepared by Amazon Review Insight`
 - `Based on structured analysis of Amazon review data and model-assisted interpretation.`
 
 ## Output Naming

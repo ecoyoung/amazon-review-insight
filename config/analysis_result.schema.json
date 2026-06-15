@@ -18,9 +18,9 @@
   "properties": {
     "pipeline": {
       "type": "object",
-      "required": ["skill_name", "generated_at", "provider", "model"],
+      "required": ["project_name", "generated_at", "provider", "model"],
       "properties": {
-        "skill_name": { "type": "string" },
+        "project_name": { "type": "string" },
         "generated_at": { "type": "string" },
         "provider": { "type": "string" },
         "model": { "type": "string" },

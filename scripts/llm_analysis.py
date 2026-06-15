@@ -36,7 +36,7 @@ try:
 except ImportError as exc:
     raise SystemExit(
         "[ERROR] Missing dependency: langchain_openai and langchain_core. "
-        "Install them in the Python environment that runs this standalone skill."
+        "Install them via `uv sync` before running the pipeline."
     ) from exc
 
 
@@ -95,7 +95,7 @@ def load_metadata(csv_path: str) -> dict[str, Any]:
     return {
         "source_file": csv_file.name,
         "source_stem": csv_file.stem,
-        "report_title": "Consumer Voice Intelligence Report",
+        "report_title": "Amazon Review Insight Report",
         "report_subtitle": csv_file.stem,
         "report_slug": base_stem,
     }
@@ -128,7 +128,7 @@ def get_provider_configs(
         provider NAMES (resolved from ``ordered_providers()``) and
         ``model_override`` is the LangChain model identifier (or None).
 
-    Per-provider model settings are resolved from this skill's
+    Per-provider model settings are resolved from the project's
     ``config/provider_registry.json`` plus environment variables.
     """
     runtime_config = runtime_config or {}
@@ -863,7 +863,7 @@ def run_analysis(
     market_semantics = parsed if isinstance(parsed, dict) else {"semantic_insights": []}
 
     pipeline = {
-        "skill_name": "amazon-review-insight",
+        "project_name": "amazon-review-insight",
         "generated_at": pd.Timestamp.now("UTC").isoformat(),
         "provider": model_log[0]["provider"] if model_log else fallback_chain[0],
         "model": model_log[0]["model"] if model_log else fallback_chain[0],
@@ -881,8 +881,8 @@ def run_analysis(
         "report": {
             "title": metadata["report_title"],
             "subtitle": metadata["report_subtitle"],
-            "brand_name": "Oceanwing",
-            "brand_primary": "#1DA2D8",
+            "brand_name": "Amazon Review Insight",
+            "brand_primary": "#00AEEF",
         },
         "dataset": {
             "source_type": "amazon_reviews",

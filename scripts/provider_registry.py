@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Provider registry helpers for standalone amazon-review-insight."""
+"""Provider registry helpers for amazon-review-insight."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ DEFAULT_PROVIDER_ORDER = FALLBACK_CHAIN
 _ENV_LOADED = False
 
 
-def skill_root() -> Path:
+def project_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
@@ -23,7 +23,7 @@ def load_local_env() -> None:
     if _ENV_LOADED:
         return
 
-    env_path = skill_root() / ".env"
+    env_path = project_root() / ".env"
     if not env_path.exists():
         _ENV_LOADED = True
         return
@@ -55,10 +55,10 @@ def load_provider_registry(path: str | None = None) -> dict[str, Any]:
     registry_path = (
         Path(path).expanduser()
         if path
-        else skill_root() / "config" / "provider_registry.json"
+        else project_root() / "config" / "provider_registry.json"
     )
     if not registry_path.exists():
-        registry_path = skill_root() / "config" / "provider_registry.example.json"
+        registry_path = project_root() / "config" / "provider_registry.example.json"
     with open(registry_path, "r", encoding="utf-8") as handle:
         return json.load(handle)
 
@@ -139,4 +139,4 @@ def resolve_registry_path(runtime_config: dict[str, Any] | None = None) -> str |
     override = (runtime_config or {}).get("provider_registry")
     if override:
         return str(Path(str(override)).expanduser())
-    return str(skill_root() / "config" / "provider_registry.json")
+    return str(project_root() / "config" / "provider_registry.json")

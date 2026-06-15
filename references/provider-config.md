@@ -101,7 +101,7 @@ See [config/runtime_config.example.json](../config/runtime_config.example.json).
 
 ## Recommended Validation
 
-Before a new user relies on the skill in Claude, the installing environment should run:
+Before a new user relies on the workflow, the installing environment should run:
 
 ```bash
 .venv/bin/python scripts/check_env.py path/to/runtime_config.json

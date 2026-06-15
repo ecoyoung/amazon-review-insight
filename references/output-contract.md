@@ -1,10 +1,10 @@
-# amazon-review-insight Output Contract
+# Amazon Review Insight Output Contract
 
 ## Module Runner
 
-- Command: `ci/amazon-review-insight/scripts/run_multi_agent_workflow.py`
+- Command: `scripts/run_multi_agent_workflow.py` (run from the project root)
 - Canonical engine:
-  `ci/amazon-review-insight/scripts/run_multi_agent_workflow.py`
+  `scripts/run_multi_agent_workflow.py`
 
 ## Expected Artifacts
 

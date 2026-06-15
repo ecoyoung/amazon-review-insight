@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Environment checker for the Amazon Review Insight skill.
+Environment checker for Amazon Review Insight.
 
 This script verifies:
 - Python dependencies

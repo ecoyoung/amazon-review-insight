@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standalone unified runner for amazon-review-insight."""
+"""Unified runner for amazon-review-insight."""
 
 from __future__ import annotations
 
@@ -15,12 +15,12 @@ from typing import Any
 from run_pipeline import run_pipeline
 
 
-def skill_root() -> Path:
+def project_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
 def default_config() -> Path:
-    return skill_root() / "config" / "runtime_config.default.json"
+    return project_root() / "config" / "runtime_config.default.json"
 
 
 def slugify(value: str) -> str:
@@ -58,7 +58,7 @@ def write_json(path: Path, payload: dict[str, Any]) -> None:
 def build_success_summary(review_file: Path, config_file: Path, outdir: Path, outputs: dict[str, str]) -> dict[str, Any]:
     now = datetime.now(timezone.utc).isoformat()
     return {
-        "skill_name": "amazon-review-insight",
+        "project_name": "amazon-review-insight",
         "status": "completed",
         "generated_at": now,
         "review_file": str(review_file),
@@ -82,7 +82,7 @@ def build_failure_summary(
     exc: BaseException,
 ) -> dict[str, Any]:
     return {
-        "skill_name": "amazon-review-insight",
+        "project_name": "amazon-review-insight",
         "status": "failed",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "review_file": str(review_file),
@@ -128,11 +128,11 @@ def write_artifact_indexes(outdir: Path, outputs: dict[str, str], summary: dict[
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Run standalone amazon-review-insight workflow")
+    parser = argparse.ArgumentParser(description="Run the amazon-review-insight workflow")
     parser.add_argument("review_file", help="Path to the Amazon review CSV/Excel file")
     parser.add_argument("config_file", nargs="?", help="Optional path to the runtime config JSON file")
-    parser.add_argument("--outdir", help="Output directory. Defaults to <skill>/runs/<input>-<timestamp>")
-    parser.add_argument("--resume", action="store_true", help="Accepted for compatibility; not used by the standalone runner")
+    parser.add_argument("--outdir", help="Output directory. Defaults to <project>/runs/<input>-<timestamp>")
+    parser.add_argument("--resume", action="store_true", help="Accepted for compatibility; not used by the runner")
     parser.add_argument("--max-retries", type=int, default=1, help="Accepted for compatibility; retries are handled per LLM call")
     args = parser.parse_args()
 
@@ -141,7 +141,7 @@ def main() -> int:
     outdir = (
         Path(args.outdir).expanduser().resolve()
         if args.outdir
-        else skill_root() / "runs" / f"{slugify(review_file.stem)}-{timestamp()}"
+        else project_root() / "runs" / f"{slugify(review_file.stem)}-{timestamp()}"
     )
 
     try:

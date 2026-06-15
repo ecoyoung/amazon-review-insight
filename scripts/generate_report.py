@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate a branded Oceanwing HTML report from the structured analysis JSON.
+Generate a branded Amazon Review Insight HTML report from the structured analysis JSON.
 """
 
 from __future__ import annotations
@@ -16,14 +16,14 @@ from typing import Any
 
 
 BRAND = {
-    "name": "Oceanwing",
-    "primary": "#1DA2D8",
-    "secondary": "#1F3A4A",
-    "accent": "#73D4F4",
+    "name": "Amazon Review Insight",
+    "primary": "#00AEEF",
+    "secondary": "#0B1B2B",
+    "accent": "#66C6F2",
     "background": "#F4FBFE",
     "card": "#FFFFFF",
-    "text": "#15303B",
-    "muted": "#6C7F88",
+    "text": "#0B1B2B",
+    "muted": "#5A6B7B",
 }
 
 
@@ -129,7 +129,7 @@ def generate_html(data: dict[str, Any], analysis_path: str) -> str:
     dataset = data.get("dataset", {})
     method_notes = [str(note) for note in dataset.get("method_notes", []) if str(note).strip()]
     subtitle = report.get("subtitle") or slug_to_readable(get_base_name(analysis_path))
-    title = report.get("title", "Consumer Voice Intelligence Report")
+    title = report.get("title", "Amazon Review Insight Report")
     total_reviews = kpis.get("total_reviews", 0)
 
     top_adv = advantages[0]["label"] if advantages else "No dominant advantage identified"
@@ -477,7 +477,7 @@ def generate_html(data: dict[str, Any], analysis_path: str) -> str:
         radius: ['44%', '74%'],
         data: {rating_pie},
         label: {{ formatter: '{{b}}\\n{{d}}%' }},
-        color: ['#E26D5C', '#F6C85F', '#9ED9CC', '#5BC0EB', '#1DA2D8']
+        color: ['#E26D5C', '#F6C85F', '#9ED9CC', '#5BC0EB', '#00AEEF']
       }}]
     }});
 
@@ -502,7 +502,7 @@ def generate_html(data: dict[str, Any], analysis_path: str) -> str:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate Oceanwing HTML review report")
+    parser = argparse.ArgumentParser(description="Generate Amazon Review Insight HTML report")
     parser.add_argument("analysis_json", help="Path to analysis JSON")
     args = parser.parse_args()
 

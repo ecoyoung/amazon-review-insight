@@ -6,7 +6,7 @@ The user asked to confirm LLM prompts before they are finalized. Treat the promp
 
 ## Prompt Families
 
-The skill uses these prompt files, all loaded by `load_prompt_sections` from
+The workflow uses these prompt files, all loaded by `load_prompt_sections` from
 `config/prompts/`:
 
 1. `extract.draft.md` — combined chunk-level extraction (personas + advantages + pain points) in one LLM call per chunk

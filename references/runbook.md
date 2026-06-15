@@ -1,9 +1,9 @@
-# amazon-review-insight Runbook
+# Amazon Review Insight Runbook
 
 ## Prerequisites
 
-1. Python dependencies installed in the environment running this skill.
-2. Provider API keys configured through environment variables.
+1. Python dependencies installed (`uv sync`).
+2. Provider API keys configured through environment variables (or a local `.env`).
 3. Input file includes required columns:
    - `Content`
    - `Rating`
@@ -14,8 +14,10 @@
 
 ## Validate Environment
 
+From the project root:
+
 ```bash
-python3 ci/amazon-review-insight/scripts/check_env.py
+uv run python scripts/check_env.py
 ```
 
 ## Run Workflow
@@ -23,22 +25,21 @@ python3 ci/amazon-review-insight/scripts/check_env.py
 ```bash
 REVIEW_FILE=/path/to/reviews.csv
 
-python3 ci/amazon-review-insight/scripts/run_multi_agent_workflow.py \
-"$REVIEW_FILE"
+uv run python scripts/run_multi_agent_workflow.py "$REVIEW_FILE"
 ```
 
 ## With Runtime Config Override
 
 ```bash
-python3 ci/amazon-review-insight/scripts/run_multi_agent_workflow.py \
-"$REVIEW_FILE" \
-"/path/to/runtime_config.json" \
---outdir "/path/to/runs/my-run"
+uv run python scripts/run_multi_agent_workflow.py \
+  "$REVIEW_FILE" \
+  "/path/to/runtime_config.json" \
+  --outdir "/path/to/runs/my-run"
 ```
 
 ## Troubleshooting
 
-- If workflow returns non-zero status, inspect `workflow_summary.json` in the
+- If the workflow returns a non-zero status, inspect `workflow_summary.json` in the
   output directory for `failure_stage` and `error` details.
 - If no provider is configured, export one of the provider API key variables
   from `references/env.example` and rerun `check_env.py`.
