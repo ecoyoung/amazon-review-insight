@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import shutil
-import sys
 import tempfile
 import uuid
 from pathlib import Path
@@ -16,19 +15,15 @@ from rq.job import Job
 
 from .queueing import QUEUE_NAME, get_queue, get_redis, list_job_ids, now_iso, register_job
 from .worker_tasks import run_pipeline_job
+# Package __init__ already puts scripts/ on sys.path, so these resolve cleanly.
+from check_env import DEPENDENCIES, module_status, provider_status
+from provider_registry import load_runtime_config, ordered_providers
 
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-SCRIPTS_DIR = ROOT_DIR / "scripts"
 RUNS_DIR = ROOT_DIR / "runs"
 UPLOADS_DIR = RUNS_DIR / "uploads"
 DEFAULT_CONFIG = ROOT_DIR / "config" / "runtime_config.default.json"
-
-if str(SCRIPTS_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_DIR))
-
-from check_env import DEPENDENCIES, module_status, provider_status  # noqa: E402
-from provider_registry import load_runtime_config, ordered_providers  # noqa: E402
 
 
 class ArtifactLink(BaseModel):
