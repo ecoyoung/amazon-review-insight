@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Amazon Review Insight LLM Payload",
+  "type": "object",
+  "required": ["task", "dataset_summary", "review_chunks"],
+  "properties": {
+    "task": {
+      "type": "object",
+      "required": ["goal", "output_language", "sections"],
+      "properties": {
+        "goal": { "type": "string" },
+        "output_language": { "type": "string" },
+        "sections": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "dataset_summary": {
+      "type": "object",
+      "properties": {
+        "sample_size": { "type": "integer" },
+        "avg_rating": { "type": "number" },
+        "positive_rate_pct": { "type": "number" }
+      }
+    },
+    "review_chunks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["chunk_id", "review_ids", "reviews"],
+        "properties": {
+          "chunk_id": { "type": "integer" },
+          "review_ids": {
+            "type": "array",
+            "items": { "type": "integer" }
+          },
+          "reviews": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["review_id", "rating", "content"],
+              "properties": {
+                "review_id": { "type": "integer" },
+                "rating": { "type": "number" },
+                "content": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

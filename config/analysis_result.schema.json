@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Amazon Review Insight Analysis Result",
+  "type": "object",
+  "required": [
+    "pipeline",
+    "report",
+    "dataset",
+    "kpis",
+    "charts",
+    "market_semantics",
+    "persona",
+    "advantages",
+    "pain_points",
+    "strategies",
+    "traceability"
+  ],
+  "properties": {
+    "pipeline": {
+      "type": "object",
+      "required": ["skill_name", "generated_at", "provider", "model"],
+      "properties": {
+        "skill_name": { "type": "string" },
+        "generated_at": { "type": "string" },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "report_language": { "type": "string" },
+        "report_style": { "type": "string" }
+      }
+    },
+    "report": {
+      "type": "object",
+      "required": ["title", "subtitle", "brand_name"],
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "brand_name": { "type": "string" },
+        "brand_primary": { "type": "string" }
+      }
+    },
+    "dataset": {
+      "type": "object",
+      "required": ["source_type", "source_file", "total_raw_reviews", "total_cleaned_reviews", "total_analyzed_reviews"],
+      "properties": {
+        "source_type": { "type": "string" },
+        "source_file": { "type": "string" },
+        "total_raw_reviews": { "type": "integer" },
+        "total_cleaned_reviews": { "type": "integer" },
+        "total_analyzed_reviews": { "type": "integer" }
+      }
+    },
+    "kpis": {
+      "type": "object",
+      "properties": {
+        "avg_rating": { "type": "number" },
+        "positive_rate_pct": { "type": "number" },
+        "rating_distribution": { "type": "object" }
+      }
+    },
+    "charts": {
+      "type": "object",
+      "properties": {
+        "monthly_trend": { "type": "array" },
+        "word_frequency": { "type": "array" }
+      }
+    },
+    "market_semantics": {
+      "type": "object",
+      "properties": {
+        "semantic_insights": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "persona": {
+      "type": "object",
+      "properties": {
+        "personas": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["label", "coverage_pct", "supporting_review_ids"],
+            "properties": {
+              "label": { "type": "string" },
+              "usage_context": { "type": "string" },
+              "count": { "type": "integer" },
+              "coverage_pct": { "type": "number" },
+              "supporting_review_ids": {
+                "type": "array",
+                "items": { "type": "integer" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "advantages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "pain_points": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/finding" }
+    },
+    "strategies": {
+      "type": "object",
+      "properties": {
+        "top_priorities": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["rank", "theme", "category", "recommendation"],
+            "properties": {
+              "rank": { "type": "integer" },
+              "theme": { "type": "string" },
+              "category": { "type": "string" },
+              "recommendation": { "type": "string" },
+              "linked_findings": {
+                "type": "array",
+                "items": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "traceability": {
+      "type": "object",
+      "required": ["review_id_namespace", "citation_policy"],
+      "properties": {
+        "review_id_namespace": { "type": "string" },
+        "citation_policy": { "type": "string" }
+      }
+    }
+  },
+  "$defs": {
+    "quote": {
+      "type": "object",
+      "required": ["review_id", "quote"],
+      "properties": {
+        "review_id": { "type": "integer" },
+        "quote": { "type": "string" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["label", "coverage_pct", "supporting_review_ids", "sample_quotes"],
+      "properties": {
+        "label": { "type": "string" },
+        "coverage_pct": { "type": "number" },
+        "count": { "type": "integer" },
+        "business_summary": { "type": "string" },
+        "supporting_review_ids": {
+          "type": "array",
+          "items": { "type": "integer" }
+        },
+        "sample_quotes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/quote" }
+        }
+      }
+    }
+  }
+}

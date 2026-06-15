@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Amazon Review Insight Provider Registry",
+  "type": "object",
+  "required": ["providers"],
+  "properties": {
+    "providers": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/provider"
+      }
+    }
+  },
+  "$defs": {
+    "provider": {
+      "type": "object",
+      "properties": {
+        "base_url": { "type": "string" },
+        "model": { "type": "string" },
+        "api_key_env": { "type": "string" },
+        "base_url_env": { "type": "string" },
+        "model_env": { "type": "string" }
+      }
+    }
+  }
+}

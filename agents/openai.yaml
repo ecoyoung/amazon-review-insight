@@ -1,0 +1,4 @@
+interface:
+  display_name: "Amazon Review Insight"
+  short_description: "Analyze Amazon review exports into report, JSON, XLSX, and summary"
+  default_prompt: "Use $amazon-review-insight to analyze this Amazon review CSV or Excel export and return the HTML report, analysis JSON, cleaned XLSX, and summary."

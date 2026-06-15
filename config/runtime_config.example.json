@@ -1,0 +1,23 @@
+{
+  "analysis": {
+    "max_reviews": 75000,
+    "chunk_size": 150,
+    "max_chunks": 500,
+    "chunk_max_tokens": 8000,
+    "timeout_seconds": 300,
+    "max_retries": 1,
+    "json_retries": 2,
+    "default_provider": "deepseek",
+    "fallback_order": ["deepseek", "gemini", "qwen", "minimax"]
+  },
+  "provider_registry_path": "./config/provider_registry.json",
+  "provider_overrides": {
+    "deepseek": {
+      "model": "deepseek-v4-flash"
+    },
+    "minimax": {
+      "base_url": "https://api.minimaxi.com/v1",
+      "model": "MiniMax-M2.7"
+    }
+  }
+}

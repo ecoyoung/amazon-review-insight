@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Amazon Review Insight Runtime Config",
+  "type": "object",
+  "required": ["analysis"],
+  "properties": {
+    "analysis": {
+      "type": "object",
+      "properties": {
+        "max_reviews": { "type": "integer", "minimum": 1 },
+        "chunk_size": { "type": "integer", "minimum": 1 },
+        "max_chunks": { "type": "integer", "minimum": 1 },
+        "chunk_max_tokens": { "type": "integer", "minimum": 1 },
+        "timeout_seconds": { "type": "integer", "minimum": 1 },
+        "max_retries": { "type": "integer", "minimum": 0 },
+        "json_retries": { "type": "integer", "minimum": 0 },
+        "default_provider": { "type": "string" },
+        "fallback_order": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "provider_registry_path": {
+      "type": "string"
+    },
+    "provider_overrides": {
+      "type": "object",
+      "properties": {
+        "deepseek": { "$ref": "#/$defs/providerOverride" },
+        "gemini": { "$ref": "#/$defs/providerOverride" },
+        "qwen": { "$ref": "#/$defs/providerOverride" },
+        "minimax": { "$ref": "#/$defs/providerOverride" }
+      }
+    }
+  },
+  "$defs": {
+    "providerOverride": {
+      "type": "object",
+      "properties": {
+        "base_url": { "type": "string" },
+        "model": { "type": "string" },
+        "base_url_env": { "type": "string" },
+        "model_env": { "type": "string" },
+        "api_key_env": { "type": "string" }
+      }
+    }
+  }
+}
