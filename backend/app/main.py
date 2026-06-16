@@ -15,6 +15,7 @@ from rq.job import Job
 
 from .queueing import QUEUE_NAME, get_queue, get_redis, list_job_ids, now_iso, register_job
 from .worker_tasks import run_pipeline_job
+from .polls import router as polls_router
 # Package __init__ already puts scripts/ on sys.path, so these resolve cleanly.
 from check_env import DEPENDENCIES, module_status, provider_status
 from provider_registry import load_runtime_config, ordered_providers
@@ -64,6 +65,7 @@ app = FastAPI(
     version="1.0.0",
     description="Web API wrapper for the Amazon review analysis workflow.",
 )
+app.include_router(polls_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -71,6 +73,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 app.mount("/files", StaticFiles(directory=str(RUNS_DIR)), name="files")
+
+# Live poll mobile page (QR code target during training).
+_POLLS_HTML_DIR = ROOT_DIR / "polls"
+if _POLLS_HTML_DIR.exists():
+    app.mount("/p", StaticFiles(directory=str(_POLLS_HTML_DIR), html=True), name="polls")
 
 
 def runtime_config() -> dict[str, Any]:

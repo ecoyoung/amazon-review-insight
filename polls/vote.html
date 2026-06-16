@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Live Poll · Amazon Review Insight Course</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    background: linear-gradient(180deg, #ffffff 0%, #f4fbfe 100%);
+    color: #0b1b2b;
+    min-height: 100vh;
+    padding: 20px 16px 40px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px; font-weight: 700; letter-spacing: 0.16em;
+    color: #0077b6; text-transform: uppercase;
+    padding: 8px 14px;
+    background: rgba(0, 174, 239, 0.08);
+    border-radius: 999px;
+    width: max-content;
+    margin: 0 auto 24px;
+  }
+  .brand::before {
+    content: ""; width: 8px; height: 8px; border-radius: 50%;
+    background: #ff5252; animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(255, 82, 82, 0.6); }
+    70% { box-shadow: 0 0 0 8px rgba(255, 82, 82, 0); }
+  }
+  .poll {
+    max-width: 540px; margin: 0 auto;
+    background: white;
+    border-radius: 18px;
+    padding: 28px 22px;
+    box-shadow: 0 24px 60px rgba(13, 64, 92, 0.10);
+    border: 1px solid rgba(0, 130, 180, 0.16);
+  }
+  .poll__eyebrow {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #0077b6;
+    margin-bottom: 10px;
+  }
+  .poll__question {
+    font-size: 22px; line-height: 1.35; font-weight: 700;
+    color: #0b1b2b; margin: 0 0 22px;
+    letter-spacing: -0.01em;
+  }
+  .options { display: flex; flex-direction: column; gap: 10px; }
+  .option {
+    display: flex; align-items: center; gap: 14px;
+    padding: 16px 18px;
+    background: #f7fbff;
+    border: 2px solid rgba(0, 130, 180, 0.12);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 180ms ease;
+    text-align: left;
+    width: 100%;
+    font: inherit;
+    color: inherit;
+  }
+  .option:active { transform: scale(0.98); }
+  .option:hover { border-color: #00aeef; background: #e6f4fb; }
+  .option__radio {
+    width: 22px; height: 22px; border-radius: 50%;
+    border: 2px solid #b8d0e0;
+    flex-shrink: 0;
+    position: relative;
+    transition: all 180ms ease;
+  }
+  .option__label { flex: 1; font-size: 16px; font-weight: 500; }
+  .option.is-voted {
+    border-color: #00aeef;
+    background: #e6f4fb;
+  }
+  .option.is-voted .option__radio {
+    border-color: #00aeef;
+    background: #00aeef;
+  }
+  .option.is-voted .option__radio::after {
+    content: ""; position: absolute; inset: 5px;
+    border-radius: 50%; background: white;
+  }
+  .option.is-disabled { opacity: 0.55; cursor: not-allowed; }
+  .option.is-disabled:hover { background: #f7fbff; border-color: rgba(0, 130, 180, 0.12); }
+
+  .results {
+    margin-top: 22px; padding-top: 18px;
+    border-top: 1px solid rgba(0, 130, 180, 0.10);
+  }
+  .results__title {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.18em;
+    text-transform: uppercase; color: #5a6b7b;
+    margin-bottom: 12px;
+  }
+  .bar-row { margin-bottom: 10px; }
+  .bar-row__head {
+    display: flex; justify-content: space-between;
+    font-size: 13px; margin-bottom: 4px;
+  }
+  .bar-row__label { color: #1f3043; }
+  .bar-row__count { color: #5a6b7b; font-variant-numeric: tabular-nums; }
+  .bar-row__bar {
+    height: 8px; background: rgba(0, 130, 180, 0.10);
+    border-radius: 999px; overflow: hidden;
+  }
+  .bar-row__fill {
+    height: 100%; background: #00aeef;
+    border-radius: 999px;
+    transition: width 600ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .footer {
+    text-align: center; margin-top: 22px;
+    font-size: 12px; color: #5a6b7b;
+  }
+  .error {
+    text-align: center; padding: 60px 20px;
+    color: #d7263d; font-size: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="brand">Live Poll</div>
+<div id="app"></div>
+<script>
+  const API = window.location.origin.replace(/:\d+$/, ':8000');
+  // Allow override via ?api= for local Slidev testing
+  const urlParams = new URLSearchParams(window.location.search);
+  const API_BASE = urlParams.get('api') || API;
+  const pollId = urlParams.get('id') || window.location.pathname.split('/').filter(Boolean).pop();
+
+  async function main() {
+    const app = document.getElementById('app');
+    if (!pollId) {
+      app.innerHTML = '<div class="error">Missing poll id in URL.</div>';
+      return;
+    }
+    let poll;
+    try {
+      const r = await fetch(`${API_BASE}/api/polls/${encodeURIComponent(pollId)}`);
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      poll = await r.json();
+    } catch (e) {
+      app.innerHTML = `<div class="error">无法加载问卷。<br/>请确认 demo 工具后端在 <code>${API_BASE}</code> 运行。</div>`;
+      return;
+    }
+
+    const votedKey = `poll:${pollId}:voted`;
+    const voted = localStorage.getItem(votedKey);
+
+    app.innerHTML = `
+      <div class="poll">
+        <div class="poll__eyebrow">Scan-vote · ${poll.id}</div>
+        <h1 class="poll__question">${poll.question}</h1>
+        <div class="options" id="opts"></div>
+        <div class="results" id="results" style="display: none;"></div>
+        <div class="footer">每人一票 · 实时统计</div>
+      </div>
+    `;
+
+    const optsEl = document.getElementById('opts');
+    const resultsEl = document.getElementById('results');
+
+    function renderOptions() {
+      optsEl.innerHTML = poll.options.map(opt => `
+        <button class="option ${voted === opt.id ? 'is-voted' : ''} ${voted ? 'is-disabled' : ''}"
+                data-id="${opt.id}" ${voted ? 'disabled' : ''}>
+          <span class="option__radio"></span>
+          <span class="option__label">${opt.label}</span>
+        </button>
+      `).join('');
+      optsEl.querySelectorAll('.option').forEach(btn => {
+        btn.addEventListener('click', () => castVote(btn.dataset.id));
+      });
+    }
+
+    async function castVote(optId) {
+      try {
+        await fetch(`${API_BASE}/api/polls/${encodeURIComponent(pollId)}/vote`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ option_id: optId }),
+        });
+        localStorage.setItem(votedKey, optId);
+      } catch (e) {
+        // Vote failed; still show results so user gets feedback
+      }
+      renderOptions();
+      loadResults();
+      setInterval(loadResults, 2500);
+    }
+
+    async function loadResults() {
+      try {
+        const r = await fetch(`${API_BASE}/api/polls/${encodeURIComponent(pollId)}/results`);
+        const data = await r.json();
+        resultsEl.style.display = 'block';
+        resultsEl.innerHTML = `
+          <div class="results__title">实时结果 · ${data.total} 票</div>
+          ${data.options.map(opt => `
+            <div class="bar-row">
+              <div class="bar-row__head">
+                <span class="bar-row__label">${opt.label}</span>
+                <span class="bar-row__count">${opt.count} · ${opt.pct}%</span>
+              </div>
+              <div class="bar-row__bar"><div class="bar-row__fill" style="width: ${opt.pct}%"></div></div>
+            </div>
+          `).join('')}
+        `;
+      } catch (e) {}
+    }
+
+    renderOptions();
+    if (voted) {
+      loadResults();
+      setInterval(loadResults, 2500);
+    }
+  }
+  main();
+</script>
+</body>
+</html>
