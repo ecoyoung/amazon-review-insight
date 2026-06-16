@@ -13,7 +13,7 @@ def main() -> int:
         for _ in range(max(worker_count, 1)):
             processes.append(
                 subprocess.Popen(
-                    [sys.executable, "backend/run_worker.py"],
+                    [sys.executable, "-m", "backend.run_worker"],
                     text=True,
                 )
             )
