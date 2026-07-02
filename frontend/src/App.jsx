@@ -120,11 +120,7 @@ function UserWorkspace() {
     setSubmitting(true);
     try {
       const response = await fetch("/api/jobs", { method: "POST", body: formData });
-      if (!response.ok) {
-        const payload = await response.json();
-        throw new Error(payload.detail || "Unable to create job");
-      }
-      const job = await response.json();
+      const job = await parseJsonResponse(response, "Unable to create job");
       setActiveJobId(job.job_id);
       setJobs((current) => [job, ...current.filter((item) => item.job_id !== job.job_id)]);
       form.reset();
@@ -549,6 +545,23 @@ function getTrackingIdentity() {
     window.sessionStorage.setItem(visitKey, visitId);
   }
   return { sessionId, visitId };
+}
+
+async function parseJsonResponse(response, fallbackMessage) {
+  const text = await response.text();
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      const preview = text.replace(/\s+/g, " ").trim().slice(0, 160);
+      throw new Error(`${fallbackMessage}: HTTP ${response.status}${preview ? ` - ${preview}` : ""}`);
+    }
+  }
+  if (!response.ok) {
+    throw new Error(payload?.detail || `${fallbackMessage}: HTTP ${response.status}`);
+  }
+  return payload;
 }
 
 function recordPageView({ sessionId, visitId }) {
