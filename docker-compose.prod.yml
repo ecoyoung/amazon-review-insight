@@ -1,19 +1,20 @@
 services:
   redis:
     image: redis:7-alpine
-    ports:
-      - "6380:6379"
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
 
   backend:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    restart: unless-stopped
     env_file:
       - .env
     environment:
       REDIS_URL: redis://redis:6379/0
-    ports:
-      - "8001:8000"
     volumes:
       - ./runs:/app/runs
     depends_on:
@@ -23,11 +24,12 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    restart: unless-stopped
     env_file:
       - .env
     environment:
       REDIS_URL: redis://redis:6379/0
-      RQ_WORKER_CONCURRENCY: "2"
+      RQ_WORKER_CONCURRENCY: "${RQ_WORKER_CONCURRENCY:-2}"
     command: ["uv", "run", "python", "-m", "backend.run_workers"]
     volumes:
       - ./runs:/app/runs
@@ -38,7 +40,11 @@ services:
     build:
       context: .
       dockerfile: frontend/Dockerfile
+    restart: unless-stopped
     ports:
-      - "8081:80"
+      - "${APP_PORT:-80}:80"
     depends_on:
       - backend
+
+volumes:
+  redis_data:

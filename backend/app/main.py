@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -16,6 +16,7 @@ from rq.job import Job
 from .queueing import QUEUE_NAME, get_queue, get_redis, list_job_ids, now_iso, register_job
 from .worker_tasks import run_pipeline_job
 from .polls import router as polls_router
+from .analytics import client_ip_from_request, router as analytics_router, track_event
 # Package __init__ already puts scripts/ on sys.path, so these resolve cleanly.
 from check_env import DEPENDENCIES, module_status, provider_status
 from provider_registry import load_runtime_config, ordered_providers
@@ -66,6 +67,7 @@ app = FastAPI(
     description="Web API wrapper for the Amazon review analysis workflow.",
 )
 app.include_router(polls_router)
+app.include_router(analytics_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -211,7 +213,12 @@ def get_job(job_id: str) -> JobPayload:
 
 
 @app.post("/api/jobs", response_model=JobPayload)
-async def create_job(review_file: UploadFile = File(...)) -> JobPayload:
+async def create_job(
+    request: Request,
+    review_file: UploadFile = File(...),
+    session_id: str | None = Form(default=None),
+    visit_id: str | None = Form(default=None),
+) -> JobPayload:
     if not review_file.filename:
         raise HTTPException(status_code=400, detail="Missing review file name")
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -246,6 +253,15 @@ async def create_job(review_file: UploadFile = File(...)) -> JobPayload:
     )
     job.save_meta()
     register_job(job_id)
+    track_event(
+        "task_submitted",
+        session_id=session_id,
+        visit_id=visit_id,
+        path="/",
+        job_id=job_id,
+        ip_address=client_ip_from_request(request),
+        metadata={"filename": review_file.filename},
+    )
     return build_payload(job)
 
 

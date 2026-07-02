@@ -1,35 +1,62 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import logoUrl from "./assets/logo.png";
 
-const POLL_INTERVAL_IDLE = 5000;
-const POLL_INTERVAL_RUNNING = 1500;
-
-const statCards = [
-  { label: "Outputs", value: "4", detail: "Report, insight JSON, cleaned XLSX, summary" },
-  { label: "Speed", value: "1 flow", detail: "Upload once and wait for the finished analysis pack" },
-  { label: "Formats", value: "CSV/XLSX", detail: "SellerSprite and standard Amazon exports" },
-];
+const POLL_INTERVAL = 2500;
 
 const stageMap = {
   queued: "Queued",
-  running: "Analyzing reviews...",
+  running: "Analyzing",
   completed: "Completed",
   failed: "Failed",
 };
 
+const artifactLabels = {
+  report_html: "HTML report",
+  analysis_json: "Insight JSON",
+  cleaned_xlsx: "Cleaned workbook",
+  selected_csv: "Selected reviews",
+  metadata_json: "Pipeline metadata",
+  summary_md: "Markdown summary",
+};
+
+const workflowSteps = [
+  { label: "Clean", detail: "Deduplicate, verify, and select useful review text." },
+  { label: "Analyze", detail: "Extract personas, pain points, advantages, and semantic themes." },
+  { label: "Package", detail: "Create the report, source files, and workflow summary." },
+];
+
+const deliverables = [
+  "Executive HTML report",
+  "Structured insight JSON",
+  "Cleaned review workbook",
+  "Selected review CSV",
+];
+
 function App() {
+  if (window.location.pathname.startsWith("/admin")) {
+    return <AdminDashboard />;
+  }
+  return <UserWorkspace />;
+}
+
+function UserWorkspace() {
   const [health, setHealth] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [activeJobId, setActiveJobId] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState("");
   const [error, setError] = useState("");
   const reviewInputRef = useRef(null);
+  const identityRef = useRef(getTrackingIdentity());
+
+  useEffect(() => {
+    recordPageView(identityRef.current);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
-    let timer = null;
 
-    async function bootstrap() {
+    async function refresh() {
       try {
         const [healthRes, jobsRes] = await Promise.all([
           fetch("/api/health"),
@@ -44,9 +71,7 @@ function App() {
         }
         setHealth(healthData);
         setJobs(jobsData);
-        if (!activeJobId && jobsData[0]) {
-          setActiveJobId(jobsData[0].job_id);
-        }
+        setActiveJobId((current) => current || jobsData[0]?.job_id || "");
       } catch (requestError) {
         if (!cancelled) {
           setError(requestError.message);
@@ -54,29 +79,29 @@ function App() {
       }
     }
 
-    function schedule() {
-      const anyRunning = jobs.some((job) => job.status === "running" || job.status === "queued");
-      timer = window.setTimeout(async () => {
-        await bootstrap();
-        if (!cancelled) {
-          schedule();
-        }
-      }, anyRunning ? POLL_INTERVAL_RUNNING : POLL_INTERVAL_IDLE);
-    }
-
-    bootstrap();
-    schedule();
+    refresh();
+    const timer = window.setInterval(refresh, POLL_INTERVAL);
     return () => {
       cancelled = true;
-      if (timer) {
-        window.clearTimeout(timer);
-      }
+      window.clearInterval(timer);
     };
-  }, [activeJobId, jobs]);
+  }, []);
 
-  const activeJob = jobs.find((job) => job.job_id === activeJobId) ?? jobs[0] ?? null;
+  const activeJob = useMemo(
+    () => jobs.find((job) => job.job_id === activeJobId) ?? jobs[0] ?? null,
+    [activeJobId, jobs],
+  );
   const reportArtifact = activeJob?.artifacts.find((artifact) => artifact.name === "report_html") ?? null;
   const bundleUrl = activeJob ? `/api/jobs/${activeJob.job_id}/download` : "";
+  const runningJobs = jobs.filter((job) => job.status === "running" || job.status === "queued").length;
+  const completedJobs = jobs.filter((job) => job.status === "completed").length;
+  const failedJobs = jobs.filter((job) => job.status === "failed").length;
+  const configuredProviders = health?.providers?.filter((provider) => provider.configured).length ?? 0;
+  const metricCards = [
+    { label: "Queue", value: runningJobs, detail: runningJobs ? "Runs in progress" : "Ready for a new file" },
+    { label: "Reports", value: completedJobs, detail: "Finished insight packs" },
+    { label: "Reviews", value: activeJob?.summary?.total_selected_reviews ?? "CSV/XLSX", detail: activeJob ? "Selected in active run" : "Supported input formats" },
+  ];
 
   async function submitJob(event) {
     event.preventDefault();
@@ -84,11 +109,14 @@ function App() {
     const form = event.currentTarget;
     const reviewFile = reviewInputRef.current?.files?.[0];
     if (!reviewFile) {
-      setError("Please choose a review file before starting analysis.");
+      setError("Choose a CSV or Excel review export before starting analysis.");
       return;
     }
+    const { sessionId, visitId } = identityRef.current;
     const formData = new FormData();
     formData.append("review_file", reviewFile);
+    formData.append("session_id", sessionId);
+    formData.append("visit_id", visitId);
     setSubmitting(true);
     try {
       const response = await fetch("/api/jobs", { method: "POST", body: formData });
@@ -98,8 +126,9 @@ function App() {
       }
       const job = await response.json();
       setActiveJobId(job.job_id);
-      setJobs((current) => [job, ...current]);
+      setJobs((current) => [job, ...current.filter((item) => item.job_id !== job.job_id)]);
       form.reset();
+      setSelectedFileName("");
     } catch (submitError) {
       setError(submitError.message);
     } finally {
@@ -109,87 +138,105 @@ function App() {
 
   return (
     <div className="app-shell">
-      <div className="background-orb background-orb-left" />
-      <div className="background-orb background-orb-right" />
-
-      <header className="hero">
-        <div className="hero-copy">
-          <div className="brand-mark">
-            <img src={logoUrl} alt="Amazon Review Insight" />
-            <span>Amazon Review Insight</span>
-          </div>
-          <span className="eyebrow">Review Intelligence Console</span>
-          <h1>Upload reviews. Get a decision-ready insight report.</h1>
-          <p className="hero-text">
-            Built for speed, not setup. Add an Amazon review export and the system returns cleaned
-            data, structured insight, and a polished report.
-          </p>
-          <div className="hero-actions">
-            <a href="#upload" className="primary-button">
-              Start Analysis
-            </a>
-            <a href="#results" className="ghost-button">
-              View Results
-            </a>
-          </div>
-        </div>
-
-        <div className="hero-panel">
-          <div className="signal-card">
-            <div className="signal-head">
-              <span className="signal-label">Analysis status</span>
-              <span className={`badge ${health ? "badge-good" : ""}`}>{health ? "Live" : "Loading"}</span>
-            </div>
-            <div className="signal-summary">
-              <div className="signal-feature">
-                <strong>Upload once</strong>
-                <span>The system handles preprocessing, insight generation, and report packaging.</span>
-              </div>
-              <div className="signal-feature">
-                <strong>Get a full pack</strong>
-                <span>Receive a polished HTML report plus the structured files behind it.</span>
-              </div>
-              <div className="signal-feature">
-                <strong>Track progress</strong>
-                <span>Every run stays visible so you can reopen outputs without rerunning analysis.</span>
-              </div>
-            </div>
-          </div>
+      <header className="topbar">
+        <a className="brand" href="/">
+          <img src={logoUrl} alt="Amazon Review Insight" />
+          <span>
+            <strong>Amazon Review Insight</strong>
+            <small>Review intelligence workspace</small>
+          </span>
+        </a>
+        <div className="system-strip">
+          <StatusPill label="API" status={health ? "Live" : "Loading"} tone={health ? "good" : "idle"} />
+          <StatusPill label="Providers" status={`${configuredProviders} ready`} tone={configuredProviders ? "good" : "warn"} />
+          <StatusPill label="Queue" status={runningJobs ? `${runningJobs} active` : "Idle"} tone={runningJobs ? "busy" : "idle"} />
         </div>
       </header>
 
-      <section className="stats-grid">
-        {statCards.map((card) => (
-          <article className="glass-card stat-card" key={card.label}>
-            <span>{card.label}</span>
-            <strong>{card.value}</strong>
-            <p>{card.detail}</p>
-          </article>
-        ))}
-      </section>
-
-      <main className="content-grid">
-        <section className="glass-card upload-card" id="upload">
-          <div className="section-heading">
-            <span>Upload</span>
-            <h2>Start with one file. Everything else should feel automatic.</h2>
+      <main className="workspace product-workspace">
+        <section className="product-hero">
+          <div className="hero-copy">
+            <p className="eyebrow">Amazon review intelligence</p>
+            <h1>Turn raw reviews into a report your team can act on.</h1>
+            <p>
+              Upload one Amazon review export. The workflow cleans the data, extracts commercial themes,
+              and returns a polished report pack for product, content, and category decisions.
+            </p>
           </div>
-          <form className="upload-form" onSubmit={submitJob}>
-            <label className="upload-field">
-              <span>Review export</span>
-              <input ref={reviewInputRef} type="file" accept=".csv,.xlsx,.xls" />
+
+          <form className="upload-console hero-upload" onSubmit={submitJob}>
+            <label className={`file-drop ${selectedFileName ? "file-drop-ready" : ""}`}>
+              <span className="file-drop-label">Review export</span>
+              <strong>{selectedFileName || "Drop or select a CSV / XLSX file"}</strong>
+              <small>{selectedFileName ? "Ready to start the analysis run" : "SellerSprite and standard Amazon exports are supported"}</small>
+              <input
+                ref={reviewInputRef}
+                type="file"
+                accept=".csv,.xlsx,.xls"
+                onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name || "")}
+              />
             </label>
             <button className="primary-button" disabled={submitting} type="submit">
               {submitting ? "Submitting..." : "Start analysis"}
             </button>
             {error ? <p className="error-text">{error}</p> : null}
           </form>
+
+          <div className="workflow-strip">
+            {workflowSteps.map((step, index) => (
+              <article className="workflow-step" key={step.label}>
+                <span>{String(index + 1).padStart(2, "0")}</span>
+                <strong>{step.label}</strong>
+                <small>{step.detail}</small>
+              </article>
+            ))}
+          </div>
         </section>
 
-        <section className="glass-card jobs-card">
-          <div className="section-heading">
-            <span>History</span>
-            <h2>Recent analyses</h2>
+        <aside className="report-preview panel">
+          <div className="report-preview-head">
+            <p className="eyebrow">Report pack</p>
+            <span className="badge badge-queued">{configuredProviders ? "LLM ready" : "Provider needed"}</span>
+          </div>
+          <div className="report-sheet">
+            <div className="sheet-kicker">Amazon Review Insight</div>
+            <h2>Decision report</h2>
+            <div className="sheet-bars">
+              <span />
+              <span />
+              <span />
+            </div>
+            <div className="sheet-grid">
+              <span />
+              <span />
+              <span />
+              <span />
+            </div>
+          </div>
+          <div className="deliverable-list">
+            {deliverables.map((item) => (
+              <span key={item}>{item}</span>
+            ))}
+          </div>
+        </aside>
+
+        <section className="metrics-grid workspace-metrics" aria-label="Workspace status">
+          {metricCards.map((card) => (
+            <article className="metric-card" key={card.label}>
+              <span>{card.label}</span>
+              <strong>{typeof card.value === "number" ? formatNumber(card.value) : card.value}</strong>
+              <small>{card.detail}</small>
+            </article>
+          ))}
+        </section>
+
+        <section className="jobs-panel panel">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Recent runs</p>
+              <h2>Recent analyses</h2>
+            </div>
+            <span className="count-chip">{jobs.length}</span>
           </div>
           <div className="job-list">
             {jobs.length ? (
@@ -200,122 +247,314 @@ function App() {
                   onClick={() => setActiveJobId(job.job_id)}
                   type="button"
                 >
-                  <div>
+                  <span className={`status-dot status-${job.status}`} />
+                  <span className="job-text">
                     <strong>{job.input_filename}</strong>
-                    <span>{job.job_id}</span>
-                  </div>
+                    <small>{formatDate(job.created_at)} · {job.job_id}</small>
+                  </span>
                   <span className={`badge badge-${job.status}`}>{stageMap[job.status] ?? job.status}</span>
                 </button>
               ))
             ) : (
-              <p className="empty-text">No jobs yet. Upload a review file to create the first run.</p>
+              <EmptyState title="No analyses yet" body="Upload a review export to create the first run." />
             )}
           </div>
         </section>
 
-        <section className="glass-card detail-card" id="results">
-          <div className="section-heading">
-            <span>Results</span>
-            <h2>{activeJob ? activeJob.input_filename : "Waiting for first job"}</h2>
+        <section className="results-panel panel" id="results">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Active report</p>
+              <h2>{activeJob ? activeJob.input_filename : "Waiting for analysis"}</h2>
+            </div>
+            {activeJob ? <span className={`badge badge-${activeJob.status}`}>{stageMap[activeJob.status] ?? activeJob.status}</span> : null}
           </div>
+
           {activeJob ? (
             <>
-              {activeJob.status === "running" ? (
-                <div className="result-processing">
-                  <div className="processing-head">
-                    <div className="processing-bar">
-                      <span style={{ width: `${Math.max(activeJob.progress_pct || 12, 12)}%` }} />
-                    </div>
-                    <span className="processing-pct">{activeJob.progress_pct || 0}%</span>
-                    {activeJob.chunk_index && activeJob.chunk_total ? (
-                      <span className="chunk-pill">
-                        Chunk {activeJob.chunk_index} / {activeJob.chunk_total}
-                      </span>
-                    ) : null}
-                  </div>
-                  <div className="processing-copy">
-                    <strong>Analysis in progress</strong>
-                    <p>{activeJob.status_detail || "The system is cleaning reviews, generating insight, and preparing the final report."}</p>
-                  </div>
-                </div>
-              ) : null}
+              <ProgressBlock job={activeJob} />
 
               {reportArtifact?.preview_url ? (
-                <div className="result-hero">
+                <div className="report-callout">
                   <div>
-                    <span className="result-hero-label">Ready to view</span>
-                    <h3>Open the finished report first.</h3>
-                    <p>
-                      The HTML report is the fastest way to review the findings before downloading the full output pack.
-                    </p>
+                    <span>Primary output</span>
+                    <strong>Open the finished HTML report first.</strong>
+                    <small>Use the full bundle when you need the source files behind the report.</small>
                   </div>
-                  <a
-                    className="primary-button"
-                    href={reportArtifact.preview_url}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open Report
-                  </a>
-                  <a className="ghost-button" href={bundleUrl}>
-                    Download All
-                  </a>
+                  <div className="callout-actions">
+                    <a className="primary-button" href={reportArtifact.preview_url} target="_blank" rel="noreferrer">
+                      Open report
+                    </a>
+                    <a className="secondary-button" href={bundleUrl}>
+                      Download all
+                    </a>
+                  </div>
                 </div>
               ) : null}
 
-              <div className="detail-metrics">
-                <div>
-                  <span>Status</span>
-                  <strong>{stageMap[activeJob.status] ?? activeJob.status}</strong>
-                </div>
-                <div>
-                  <span>Created</span>
-                  <strong>{formatDate(activeJob.created_at)}</strong>
-                </div>
-                <div>
-                  <span>Progress</span>
-                  <strong>{activeJob.status === "running" ? `${activeJob.progress_pct || 0}%` : activeJob.artifacts.length}</strong>
-                </div>
+              <div className="detail-grid">
+                <DetailItem label="Created" value={formatDate(activeJob.created_at)} />
+                <DetailItem label="Progress" value={activeJob.status === "running" || activeJob.status === "queued" ? `${activeJob.progress_pct || 0}%` : `${activeJob.artifacts.length} files`} />
+                <DetailItem label="Stage" value={activeJob.current_stage || activeJob.status} />
               </div>
 
               {activeJob.error ? <p className="error-text">{activeJob.error}</p> : null}
-
-              <p className="detail-note">
-                {activeJob.status === "running"
-                  ? "The files will appear here as soon as this analysis completes."
-                  : "Download the full output pack whenever you need the source files behind the report."}
-              </p>
 
               <div className="artifact-grid">
                 {activeJob.artifacts.length ? (
                   activeJob.artifacts.map((artifact) => (
                     <article className="artifact-card" key={artifact.name}>
-                      <span>{artifact.name}</span>
+                      <span>{artifactLabels[artifact.name] ?? artifact.name}</span>
                       <strong>{artifact.filename}</strong>
                       <div className="artifact-actions">
-                        <a href={artifact.download_url} target="_blank" rel="noreferrer">
-                          Download
-                        </a>
-                        {artifact.preview_url ? (
-                          <a href={artifact.preview_url} target="_blank" rel="noreferrer">
-                            Preview
-                          </a>
-                        ) : null}
+                        <a href={artifact.download_url} target="_blank" rel="noreferrer">Download</a>
+                        {artifact.preview_url ? <a href={artifact.preview_url} target="_blank" rel="noreferrer">Preview</a> : null}
                       </div>
                     </article>
                   ))
                 ) : (
-                  <p className="empty-text">Artifacts will appear here after the job completes.</p>
+                  <EmptyState title="Artifacts pending" body="Files appear here when the worker finishes the run." />
                 )}
               </div>
             </>
           ) : (
-            <p className="empty-text">Select a job to inspect pipeline output.</p>
+            <EmptyState title="Select or submit a run" body="The report pack, status, and downloads will appear here." />
           )}
         </section>
       </main>
     </div>
   );
+}
+
+function AdminDashboard() {
+  const [token, setToken] = useState(() => window.sessionStorage.getItem("ari_admin_token") || "");
+  const [draftToken, setDraftToken] = useState(() => window.sessionStorage.getItem("ari_admin_token") || "");
+  const [summary, setSummary] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+    let cancelled = false;
+
+    async function loadSummary() {
+      setLoading(true);
+      setError("");
+      try {
+        const response = await fetch("/api/analytics/summary", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) {
+          const payload = await response.json().catch(() => ({}));
+          throw new Error(payload.detail || "Unable to load analytics.");
+        }
+        const payload = await response.json();
+        if (!cancelled) {
+          setSummary(payload);
+        }
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(loadError.message);
+          setSummary(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSummary();
+    const timer = window.setInterval(loadSummary, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [token]);
+
+  function submitToken(event) {
+    event.preventDefault();
+    const clean = draftToken.trim();
+    if (!clean) {
+      setError("Enter the analytics admin token.");
+      return;
+    }
+    window.sessionStorage.setItem("ari_admin_token", clean);
+    setToken(clean);
+  }
+
+  function clearToken() {
+    window.sessionStorage.removeItem("ari_admin_token");
+    setToken("");
+    setDraftToken("");
+    setSummary(null);
+  }
+
+  const adminMetrics = [
+    { label: "Page views", value: summary?.page_views ?? 0, detail: "Tracked page loads" },
+    { label: "Unique visitors", value: summary?.unique_visitors ?? 0, detail: "Browser sessions" },
+    { label: "Unique IPs", value: summary?.unique_ips ?? 0, detail: "Server-observed IPs" },
+    { label: "Task submissions", value: summary?.task_submissions ?? 0, detail: "Jobs created" },
+  ];
+
+  return (
+    <div className="app-shell admin-shell">
+      <header className="topbar">
+        <a className="brand" href="/">
+          <img src={logoUrl} alt="Amazon Review Insight" />
+          <span>
+            <strong>Analytics Admin</strong>
+            <small>Private traffic and task metrics</small>
+          </span>
+        </a>
+        <div className="system-strip">
+          <a className="secondary-button compact-button" href="/">Workspace</a>
+          {token ? <button className="secondary-button compact-button" onClick={clearToken} type="button">Lock</button> : null}
+        </div>
+      </header>
+
+      <main className="admin-grid">
+        <section className="panel admin-auth-panel">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Private access</p>
+              <h2>Analytics dashboard</h2>
+            </div>
+            {loading ? <span className="badge badge-running">Refreshing</span> : null}
+          </div>
+          <form className="admin-token-form" onSubmit={submitToken}>
+            <label>
+              <span>Admin token</span>
+              <input
+                autoComplete="off"
+                onChange={(event) => setDraftToken(event.target.value)}
+                placeholder="Paste ANALYTICS_ADMIN_TOKEN"
+                type="password"
+                value={draftToken}
+              />
+            </label>
+            <button className="primary-button" type="submit">Unlock analytics</button>
+          </form>
+          {error ? <p className="error-text">{error}</p> : null}
+          <p className="admin-note">
+            This page is hidden from the public workflow. The API still requires the server-side token.
+          </p>
+        </section>
+
+        <section className="metrics-grid admin-metrics" aria-label="Private analytics metrics">
+          {adminMetrics.map((card) => (
+            <article className="metric-card" key={card.label}>
+              <span>{card.label}</span>
+              <strong>{formatNumber(card.value)}</strong>
+              <small>{card.detail}</small>
+            </article>
+          ))}
+        </section>
+
+        <section className="panel admin-events-panel">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Recent events</p>
+              <h2>Latest tracked activity</h2>
+            </div>
+          </div>
+          <div className="event-table">
+            {summary?.recent_events?.length ? (
+              summary.recent_events.map((event, index) => (
+                <article className="event-row" key={`${event.timestamp}-${index}`}>
+                  <span className="event-type">{event.event_type}</span>
+                  <span>{event.ip_address || "No IP"}</span>
+                  <span>{event.path || "-"}</span>
+                  <span>{event.job_id || "-"}</span>
+                  <time>{formatDate(event.timestamp * 1000)}</time>
+                </article>
+              ))
+            ) : (
+              <EmptyState title="No visible events" body={token ? "Events will appear after visits or submissions." : "Unlock analytics to load recent events."} />
+            )}
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+function ProgressBlock({ job }) {
+  const showProgress = job.status === "running" || job.status === "queued";
+  const progress = Math.max(Number(job.progress_pct || 0), showProgress ? 4 : 100);
+  return (
+    <div className="progress-block">
+      <div className="progress-top">
+        <strong>{job.status_detail || (showProgress ? "Analysis is queued or running." : "Analysis complete.")}</strong>
+        <span>{showProgress ? `${job.progress_pct || 0}%` : "100%"}</span>
+      </div>
+      <div className="progress-bar">
+        <span style={{ width: `${Math.min(progress, 100)}%` }} />
+      </div>
+      {job.chunk_index && job.chunk_total ? (
+        <small>Chunk {job.chunk_index} of {job.chunk_total}</small>
+      ) : null}
+    </div>
+  );
+}
+
+function StatusPill({ label, status, tone }) {
+  return (
+    <span className={`status-pill status-pill-${tone}`}>
+      <small>{label}</small>
+      <strong>{status}</strong>
+    </span>
+  );
+}
+
+function DetailItem({ label, value }) {
+  return (
+    <div className="detail-item">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function EmptyState({ title, body }) {
+  return (
+    <div className="empty-state">
+      <strong>{title}</strong>
+      <span>{body}</span>
+    </div>
+  );
+}
+
+function getTrackingIdentity() {
+  const sessionKey = "ari_session_id";
+  const visitKey = "ari_visit_id";
+  let sessionId = window.localStorage.getItem(sessionKey);
+  if (!sessionId) {
+    sessionId = `s_${crypto.randomUUID()}`;
+    window.localStorage.setItem(sessionKey, sessionId);
+  }
+  let visitId = window.sessionStorage.getItem(visitKey);
+  if (!visitId) {
+    visitId = `v_${crypto.randomUUID()}`;
+    window.sessionStorage.setItem(visitKey, visitId);
+  }
+  return { sessionId, visitId };
+}
+
+function recordPageView({ sessionId, visitId }) {
+  fetch("/api/analytics/event", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      event_type: "page_view",
+      session_id: sessionId,
+      visit_id: visitId,
+      path: window.location.pathname,
+      metadata: { referrer: document.referrer || "" },
+    }),
+  }).catch(() => {});
 }
 
 function formatDate(value) {
@@ -324,6 +563,10 @@ function formatDate(value) {
   } catch {
     return value;
   }
+}
+
+function formatNumber(value) {
+  return new Intl.NumberFormat().format(Number(value || 0));
 }
 
 export default App;
