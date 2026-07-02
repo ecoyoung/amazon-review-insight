@@ -527,17 +527,25 @@ function EmptyState({ title, body }) {
   );
 }
 
+function createClientId() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+  const random = Math.random().toString(36).slice(2, 12);
+  return `${Date.now().toString(36)}-${random}`;
+}
+
 function getTrackingIdentity() {
   const sessionKey = "ari_session_id";
   const visitKey = "ari_visit_id";
   let sessionId = window.localStorage.getItem(sessionKey);
   if (!sessionId) {
-    sessionId = `s_${crypto.randomUUID()}`;
+    sessionId = `s_${createClientId()}`;
     window.localStorage.setItem(sessionKey, sessionId);
   }
   let visitId = window.sessionStorage.getItem(visitKey);
   if (!visitId) {
-    visitId = `v_${crypto.randomUUID()}`;
+    visitId = `v_${createClientId()}`;
     window.sessionStorage.setItem(visitKey, visitId);
   }
   return { sessionId, visitId };
