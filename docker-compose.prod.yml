@@ -30,7 +30,7 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/0
       RQ_WORKER_CONCURRENCY: "${RQ_WORKER_CONCURRENCY:-2}"
-    command: ["uv", "run", "python", "-m", "backend.run_workers"]
+    command: ["python", "-m", "backend.run_workers"]
     volumes:
       - ./runs:/app/runs
     depends_on:
