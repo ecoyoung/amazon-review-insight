@@ -1,3 +1,5 @@
+**English** | [简体中文](README.zh-CN.md)
+
 # Amazon Review Insight Web
 
 This project now ships as a Docker-deployable tool website built around the existing Amazon review analysis pipeline.
